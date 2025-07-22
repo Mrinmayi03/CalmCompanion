@@ -1,0 +1,3 @@
+[flake8]
+ignore = E302,E501   # ignore missing-blank-line & line-too-long
+max-line-length = 120

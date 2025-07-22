@@ -1,99 +1,60 @@
-# uvicorn main:app
-# uvicorn main:app--reload
-
-#Primary imports
-from fastapi import FastAPI , File , UploadFile , HTTPException
-from fastapi.responses import StreamingResponse 
+from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from decouple import config                                     #To get the environment variables that we have saved in env
-import openai 
+from fastapi.responses import StreamingResponse
 
-#Importing custom functions:
-from functions.openai_requests import convert_audio_to_text , get_chat_response
-from functions.database import store_messages , reset_messages
+from functions.openai_requests import (
+    convert_audio_to_text,
+    get_chat_response,
+)
+from functions.database import store_messages, reset_messages
 from functions.text_to_speech import convert_text_to_speech
-app = FastAPI()
 
-#CORS -Origins:
-origins = [
-    "http://localhost:5173" , 
-    "http://localhost:5174" , 
-    "http://localhost:4173" , 
-    "http://localhost:4174" , 
-    "http://localhost:3000" ,
+app = FastAPI()                    # default /docs stays enabled ✔️
+
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://localhost:4173",
 ]
 
-#CORS - Middleware:
 app.add_middleware(
-    CORSMiddleware , 
-    allow_origins = origins ,
-    allow_credentials = True , 
-    allow_methods = ["*"] , 
-    allow_headers = ["*"] ,
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-#Checking health:
+
 @app.get("/health")
-async def check_health():
+async def health():
     return {"message": "Healthy"}
 
-#Resetting messages:
+
 @app.get("/reset")
-async def reset_conversation():
+async def reset():
     reset_messages()
     return {"message": "Conversation reset."}
 
 
+@app.post("/post-audio")
+async def post_audio(file: UploadFile = File(...)):
+    # save upload to disk so Whisper can open it
+    with open(file.filename, "wb") as f:
+        f.write(file.file.read())
 
-#To get the audio:
-@app.post("/post-audio/")
-async def post_audio(file : UploadFile = File(...)):
-    
-    #Get saved audio:
-    #audio_input = open("voice.mp3" , "rb")
-    
-    #Saving file from frontend:
-    with open(file.filename , "wb") as buffer:
-        buffer.write(file.file.read())
-    
-    audio_input = open(file.filename , "rb")
-    
-    #Decoding audio:
-    message_decoded = convert_audio_to_text(audio_input)
-    
-    #Guard to ensure that the message has been decoded:
-    if not message_decoded:
-        return HTTPException(status_code = 400 , detail = "Failed to decode the audio.")
-    
-    #Getting chatGPT response:
-    chat_response = get_chat_response(message_decoded)
-    
-    
-    #Guard to ensure the response:
-    if not chat_response:
-        return HTTPException(status_code = 400 , detail = "Failed to get the chat response.")
-    
-    #Store messages:
-    store_messages(message_decoded , chat_response)
-    
-    #print(chat_response)
-    
-    #Convert chat response to audio:
-    audio_output = convert_text_to_speech(chat_response)
-    
-    
-    #Guard to ensure the response:
-    if not audio_output:
-        return HTTPException(status_code = 400 , detail = "Failed to get the Eleven Labs Audio response.")
-    
-    
-    #Creating a generator that yields chunks of data:
-    def iterfile():
-        yield audio_output
-        
-    #Returning audio file:
-    return StreamingResponse(iterfile() , media_type="application/octet-stream")
-    return "Done"
-    
-    
-    
+    with open(file.filename, "rb") as f:
+        text = convert_audio_to_text(f)
+    if not text:
+        raise HTTPException(400, "Failed to decode the audio.")
+
+    reply = get_chat_response(text)
+    if not reply:
+        raise HTTPException(400, "Failed to get the chat response.")
+
+    store_messages(text, reply)
+
+    mp3 = convert_text_to_speech(reply)
+    if not mp3:
+        raise HTTPException(400, "Failed to get TTS audio.")
+
+    return StreamingResponse(iter([mp3]), media_type="audio/mpeg")

@@ -1,4 +1,4 @@
-# 🌿  Rachel – A Voice‑First Mental‑Health Companion
+# 🌿  Rachel – Your Calm Companion
 
 <p align="center">
   <img src="docs/demo.gif" width="75%" alt="Screen‑capture of Rachel listening and replying with a calming voice">

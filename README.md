@@ -49,18 +49,24 @@ cd ChatBot
 ```
 
 # Python
-python -m venv .venv && source .venv/bin/activate   # Windows: .\.venv\Scripts\activate
+python -m venv .venv 
+
+source .venv/bin/activate  
+# Windows: 
+.\.venv\Scripts\activate
+
 pip install -r requirements.txt
 
 # Node
 cd ui
+
 npm install
+
 2 · Environment variables
 Create .env in project root:
 
 dotenv
-Copy
-Edit
+
 OPEN_API_KEY=sk-...
 OPEN_API_ORG=          # leave blank if using personal account
 ELEVEN_API=eleven-...
